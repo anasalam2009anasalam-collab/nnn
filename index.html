@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI OBJECT SCANNER - Real-time Detection</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Matrix Background -->
+    <div class="matrix-bg"></div>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <div class="logo-text">
+                    <span class="main-title">AI OBJECT SCANNER</span>
+                    <span class="sub-title">Real-time Detection & Identification</span>
+                </div>
+            </div>
+            
+            <div class="system-status">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span class="status-text" id="statusText">INITIALIZING</span>
+                </div>
+                <div class="system-info">
+                    <span><i class="fas fa-microchip"></i> <span id="aiModel">YOLOv3</span></span>
+                    <span><i class="fas fa-eye"></i> <span id="objectCount">0 Objects</span></span>
+                    <span><i class="fas fa-bolt"></i> <span id="fpsCounter">0 FPS</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel - Controls -->
+            <div class="left-panel">
+                <!-- Scanner Controls -->
+                <div class="control-panel">
+                    <div class="panel-header">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>SCANNER CONTROLS</span>
+                    </div>
+                    
+                    <div class="control-buttons">
+                        <button class="btn btn-primary" onclick="startScan()" id="startBtn">
+                            <i class="fas fa-play"></i>
+                            <span>START AI SCAN</span>
+                        </button>
+                        
+                        <button class="btn btn-secondary" onclick="stopScan()" id="stopBtn" disabled>
+                            <i class="fas fa-stop"></i>
+                            <span>STOP SCAN</span>
+                        </button>
+                        
+                        <button class="btn btn-success" onclick="singleScan()" id="singleBtn">
+                            <i class="fas fa-crosshairs"></i>
+                            <span>SINGLE SCAN</span>
+                        </button>
+                        
+                        <button class="btn btn-info" onclick="captureImage()">
+                            <i class="fas fa-camera"></i>
+                            <span>CAPTURE</span>
+                        </button>
+                    </div>
+                    
+                    <!-- AI Model Selection -->
+                    <div class="model-selector">
+                        <div class="section-title">
+                            <i class="fas fa-brain"></i>
+                            <span>AI MODEL</span>
+                        </div>
+                        
+                        <div class="model-options">
+                            <select id="modelSelect" onchange="changeModel(this.value)">
+                                <option value="yolov3">YOLOv3 (Balanced)</option>
+                                <option value="yolov4">YOLOv4 (Fast)</option>
+                                <option value="yolov3-tiny">YOLOv3-Tiny (Lightweight)</option>
+                                <option value="ssd_mobilenet">MobileNet SSD</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Confidence Settings -->
+                    <div class="confidence-settings">
+                        <div class="section-title">
+                            <i class="fas fa-chart-line"></i>
+                            <span>DETECTION SETTINGS</span>
+                        </div>
+                        
+                        <div class="slider-container">
+                            <label>Confidence Threshold</label>
+                            <div class="slider-with-value">
+                                <input type="range" min="10" max="100" value="50" 
+                                       class="slider" id="confidenceSlider" oninput="updateConfidence(this.value)">
+                                <span class="slider-value" id="confidenceValue">50%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Information -->
+                <div class="info-panel">
+                    <div class="panel-header">
+                        <i class="fas fa-info-circle"></i>
+                        <span>SYSTEM INFO</span>
+                    </div>
+                    
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Camera Status</span>
+                            <span class="info-value" id="cameraStatus">Connecting...</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Resolution</span>
+                            <span class="info-value" id="resolutionInfo">640x480</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Scan Duration</span>
+                            <span class="info-value" id="scanDuration">0s</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Total Scans</span>
+                            <span class="info-value" id="totalScans">0</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Memory Usage</span>
+                            <span class="info-value" id="memoryUsage">-- MB</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Latency</span>
+                            <span class="info-value" id="latencyInfo">-- ms</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Center Panel - Camera Feed -->
+            <div class="center-panel">
+                <!-- Camera Feed -->
+                <div class="camera-panel">
+                    <div class="panel-header">
+                        <i class="fas fa-video"></i>
+                        <span>LIVE CAMERA FEED</span>
+                        <div class="feed-controls">
+                            <button class="icon-btn" onclick="toggleFullscreen()" title="Fullscreen">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                            <button class="icon-btn" onclick="toggleDetectionOverlay()" title="Toggle Overlay">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="icon-btn" onclick="refreshCamera()" title="Refresh Camera">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="camera-container">
+                        <!-- Video Feed -->
+                        <img src="/video_feed" id="videoFeed" alt="Live Camera Feed" crossorigin="anonymous">
+                        
+                        <!-- Scan Animation -->
+                        <div class="scan-animation" id="scanAnimation">
+                            <div class="scan-line"></div>
+                        </div>
+                        
+                        <!-- Detection Overlay -->
+                        <canvas id="detectionCanvas"></canvas>
+                        
+                        <!-- Status Overlay -->
+                        <div class="status-overlay" id="statusOverlay">
+                            <div class="scanning-text">
+                                <i class="fas fa-search"></i>
+                                <span>AI SCANNING ACTIVE</span>
+                            </div>
+                            <div class="object-counter">
+                                <span id="overlayObjectCount">0</span> OBJECTS DETECTED
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Feed Stats -->
+                    <div class="feed-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-clock"></i>
+                            <span id="feedTime">--:--:--</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-bolt"></i>
+                            <span id="feedFPS">0 FPS</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-crosshairs"></i>
+                            <span id="feedDetections">0 Detections</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Detection Results -->
+                <div class="results-panel">
+                    <div class="panel-header">
+                        <i class="fas fa-list"></i>
+                        <span>DETECTED OBJECTS</span>
+                        <button class="btn btn-small" onclick="exportResults()">
+                            <i class="fas fa-download"></i>
+                            EXPORT
+                        </button>
+                    </div>
+                    
+                    <div class="results-container">
+                        <div class="results-header">
+                            <div class="result-column">OBJECT</div>
+                            <div class="result-column">CONFIDENCE</div>
+                            <div class="result-column">SIZE</div>
+                            <div class="result-column">TIME</div>
+                        </div>
+                        
+                        <div class="results-list" id="resultsList">
+                            <!-- Results will be added here -->
+                            <div class="empty-result">
+                                <i class="fas fa-search"></i>
+                                <p>No objects detected yet</p>
+                                <p class="subtext">Click START AI SCAN to begin detection</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel - Object Details -->
+            <div class="right-panel">
+                <!-- Object Categories -->
+                <div class="categories-panel">
+                    <div class="panel-header">
+                        <i class="fas fa-tags"></i>
+                        <span>OBJECT CATEGORIES</span>
+                    </div>
+                    
+                    <div class="categories-list" id="categoriesList">
+                        <!-- Categories will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- Object Details -->
+                <div class="details-panel">
+                    <div class="panel-header">
+                        <i class="fas fa-info-circle"></i>
+                        <span>SELECTED OBJECT</span>
+                    </div>
+                    
+                    <div class="object-details" id="objectDetails">
+                        <div class="no-selection">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <p>Click on an object for details</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Actions -->
+                <div class="actions-panel">
+                    <div class="panel-header">
+                        <i class="fas fa-cogs"></i>
+                        <span>SYSTEM ACTIONS</span>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="action-btn" onclick="showSystemInfo()">
+                            <i class="fas fa-server"></i>
+                            <span>SYSTEM INFO</span>
+                        </button>
+                        
+                        <button class="action-btn" onclick="resetSystem()">
+                            <i class="fas fa-redo"></i>
+                            <span>RESET SYSTEM</span>
+                        </button>
+                        
+                        <button class="action-btn" onclick="showHelp()">
+                            <i class="fas fa-question-circle"></i>
+                            <span>HELP GUIDE</span>
+                        </button>
+                        
+                        <button class="action-btn" onclick="showLogs()">
+                            <i class="fas fa-file-alt"></i>
+                            <span>VIEW LOGS</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-left">
+                <div class="signal-indicator">
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                </div>
+                <span class="connection-status">AI SYSTEM: <strong id="systemStatus">READY</strong></span>
+            </div>
+            
+            <div class="footer-center">
+                <span><i class="fas fa-history"></i> UPTIME: <span id="systemUptime">00:00:00</span></span>
+            </div>
+            
+            <div class="footer-right">
+                <span><i class="fas fa-code"></i> POWERED BY: TensorFlow.js | OpenCV | Flask</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
+    <script src="script.js"></script>
+    <script src="ai-scanner.js"></script>
+</body>
+</html>
